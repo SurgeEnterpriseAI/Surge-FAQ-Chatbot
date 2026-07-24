@@ -1,0 +1,92 @@
+{
+  "c7e6aa9bdaea4b9481036043c04ffcbd": {
+    "id": "c7e6aa9bdaea4b9481036043c04ffcbd",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Embedding medquad.csv: 16,412/16,412 chunks",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "a68f1e5a5ce2402c92086a2947012c08": {
+    "id": "a68f1e5a5ce2402c92086a2947012c08",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "0ebba45578784b11ac5bb858badb34cf": {
+    "id": "0ebba45578784b11ac5bb858badb34cf",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "0d08ee2340ce481fa14db0ec259a099c": {
+    "id": "0d08ee2340ce481fa14db0ec259a099c",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "eaa957538bf04c85909e8e135fb98228": {
+    "id": "eaa957538bf04c85909e8e135fb98228",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "66f014d1732140dd9e2684c195656c8a": {
+    "id": "66f014d1732140dd9e2684c195656c8a",
+    "kind": "upload",
+    "status": "interrupted",
+    "progress": 0.05,
+    "current_file": "Chunking medquad.csv",
+    "added": 0,
+    "skipped": 0,
+    "error": "Backend restarted while job was in progress."
+  },
+  "f580e91c51ed4ea488a4af8dcfbb09c9": {
+    "id": "f580e91c51ed4ea488a4af8dcfbb09c9",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "7d8eed11787b43179e7dc9d74ecbb765": {
+    "id": "7d8eed11787b43179e7dc9d74ecbb765",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "92ac0da8b9bb42909d382ca04fcd97de": {
+    "id": "92ac0da8b9bb42909d382ca04fcd97de",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Embedding medquad.csv: 16,412/16,412 chunks",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  }
+}
