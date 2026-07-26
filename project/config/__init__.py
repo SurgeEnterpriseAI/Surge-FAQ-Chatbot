@@ -18,7 +18,9 @@ SPARSE_VECTOR_NAME = "sparse"
 
 # --- Provider Configuration ---
 # Options: "nvidia", "google", "ollama", "openrouter"
-LLM_PROVIDER = "openrouter"
+# Env-overridable so the provider can be switched without a code edit when one
+# account hits its daily quota.
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "openrouter")
 
 # --- Embedding Configuration ---
 EMBEDDING_PROVIDER = os.environ.get("EMBEDDING_PROVIDER", "nvidia")
@@ -37,7 +39,9 @@ LLM_TEMPERATURE = 0
 LLM_SEED = 42
 
 # --- Model Names per Provider ---
-NVIDIA_MODEL = "meta/llama-3.3-70b-instruct"
+# llama-3.3-70b currently answers 503 on the NIM endpoint; the 8b instruct
+# model responds in well under a second and supports tools + structured output.
+NVIDIA_MODEL = os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-8b-instruct")
 GOOGLE_MODEL = "gemini-2.5-flash-lite"
 OLLAMA_MODEL = "granite4.1:8b"
 OPENROUTER_MODEL = "google/gemma-4-26b-a4b-it:free"
@@ -74,6 +78,12 @@ EXECUTION_LOG_USE_COLOR = True
 # Enterprise defaults; Settings values remain environment configurable.
 PROMPT_VERSIONING_ENABLED = True
 SAFETY_MIN_CONFIDENCE = 0.70
+
+# The supervisor's LLM call classifies intent for the admin view, but routing
+# (route_from_supervisor) hardcodes the knowledge agent regardless of its
+# answer. On a quota-limited key that call is ~15% of the per-question spend
+# for no change in behaviour. Set to "true" to restore intent classification.
+SUPERVISOR_LLM_ENABLED = os.environ.get("SUPERVISOR_LLM_ENABLED", "false").lower() == "true"
 
 # --- Ingestion Limits ---
 # High throughput cloud embeddings (NVIDIA API) process documents efficiently.

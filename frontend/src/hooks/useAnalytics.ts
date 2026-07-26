@@ -2,12 +2,10 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import type {
   AIPerformanceData,
-  AgentPerformanceData,
   BusinessMetricsData,
   KnowledgeBaseData,
   SystemObservabilityData,
   UserAnalyticsData,
-  SecurityDashboardData,
   PredictiveAnalyticsData
 } from "../lib/types";
 
@@ -17,17 +15,6 @@ export function useAIPerformance(days: number = 30) {
     queryKey: ["analytics", "ai-performance", days],
     queryFn: async () => {
       const { data } = await api.get<AIPerformanceData>(`/analytics/ai-performance?days=${days}`);
-      return data;
-    }
-  });
-}
-
-// Agent Performance Hook
-export function useAgentPerformance() {
-  return useQuery<AgentPerformanceData>({
-    queryKey: ["analytics", "agent-performance"],
-    queryFn: async () => {
-      const { data } = await api.get<AgentPerformanceData>("/analytics/agent-performance");
       return data;
     }
   });
@@ -73,17 +60,6 @@ export function useUserAnalytics(days: number = 30) {
     queryKey: ["analytics", "users", days],
     queryFn: async () => {
       const { data } = await api.get<UserAnalyticsData>(`/analytics/users?days=${days}`);
-      return data;
-    }
-  });
-}
-
-// Security Dashboard Hook
-export function useSecurityMetrics() {
-  return useQuery<SecurityDashboardData>({
-    queryKey: ["analytics", "security"],
-    queryFn: async () => {
-      const { data } = await api.get<SecurityDashboardData>("/analytics/security");
       return data;
     }
   });

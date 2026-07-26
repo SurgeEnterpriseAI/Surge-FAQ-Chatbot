@@ -2,9 +2,9 @@ import { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  LayoutGrid, Radio, MessageSquare, Database, Network, BarChart3,
-  Cpu, ShieldAlert, Inbox, Activity, Settings, ArrowLeft,
-  Search, RefreshCw, Sparkles, Clock, DollarSign, Award, FileText
+  LayoutGrid, Database, BarChart3,
+  Inbox, Activity, Settings, ArrowLeft,
+  Search, RefreshCw, Sparkles, Clock, DollarSign, Award, FileText, Cpu
 } from "lucide-react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid,
@@ -12,24 +12,17 @@ import {
 } from "recharts";
 
 import { useAuth } from "../hooks/useAuth";
-import { useConversations, fetchHistory } from "../hooks/useConversations";
 import { useDocuments, useDeleteDocument, useIngestJob } from "../hooks/useDocuments";
 import {
-  useAIPerformance, useAgentPerformance,
+  useAIPerformance,
   useKnowledgeBase, useSystemMetrics,
-  useSecurityMetrics, usePredictiveAnalytics, useAdminActions,
+  usePredictiveAnalytics, useAdminActions,
   useUserAnalytics
 } from "../hooks/useAnalytics";
 
 // Admin components
-import { LiveActivityFeed } from "../components/admin/LiveActivityFeed";
-import { AgentWorkflowGraph } from "../components/admin/AgentWorkflowGraph";
-import { ConversationInspector } from "../components/admin/ConversationInspector";
-import { AgentCard } from "../components/admin/AgentCard";
 import { HealthIndicator } from "../components/admin/HealthIndicator";
-import { SecurityTimeline } from "../components/admin/SecurityTimeline";
 import { EscalationQueue } from "../components/admin/EscalationQueue";
-import { useEnterpriseTraces } from "../hooks/useEnterprise";
 
 // Document components
 import { UploadDropzone } from "../components/documents/UploadDropzone";
@@ -43,13 +36,8 @@ function fmt(value: number | undefined | null, format?: (v: number) => string) {
 
 type AdminTab =
   | "dashboard"
-  | "live"
-  | "explorer"
   | "kb"
-  | "graph"
   | "analytics"
-  | "metrics"
-  | "security"
   | "escalations"
   | "health"
   | "settings";
@@ -59,52 +47,18 @@ export function AdminPage() {
   const [activeTab, setActiveTab] = useState<AdminTab>("dashboard");
   const [searchDocQuery, setSearchDocQuery] = useState("");
 
-  // Conversation Explorer state
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
-  const [conversationHistory, setConversationHistory] = useState<any[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-
   // Queries
-  const { data: conversations = [], isLoading: loadingConvs } = useConversations();
   const { data: documents = [], isLoading: loadingDocs } = useDocuments();
   const deleteDocMutation = useDeleteDocument();
   const { job, error: ingestError, upload, reindex } = useIngestJob();
 
   // Analytics queries
   const { data: aiPerf } = useAIPerformance(30);
-  const { data: agentPerf } = useAgentPerformance();
   const { data: kbStats } = useKnowledgeBase();
   const { data: systemMetrics } = useSystemMetrics();
   const { data: userStats } = useUserAnalytics(30);
   const { data: predictions } = usePredictiveAnalytics();
-  const { data: securityMetrics } = useSecurityMetrics();
   const adminActions = useAdminActions();
-  const { data: traceEvents = [] } = useEnterpriseTraces(user?.is_admin === true);
-  const latestTrace = traceEvents[0];
-
-  // Select conversation & fetch detailed steps
-  const handleSelectConversation = async (sessionId: string) => {
-    setSelectedConversationId(sessionId);
-    setLoadingHistory(true);
-    try {
-      const history = await fetchHistory(sessionId);
-      const messages = history.messages.map((m) => ({
-        id: m.id,
-        role: m.role === "user" ? "user" : "assistant",
-        content: m.content,
-        agentSteps: m.metadata?.agentSteps || [],
-        tools: m.metadata?.tools || [],
-        sources: m.metadata?.sources || [],
-        safety: m.metadata?.safety || null,
-        escalationRequired: m.metadata?.escalationRequired || false,
-      }));
-      setConversationHistory(messages);
-    } catch {
-      setConversationHistory([]);
-    } finally {
-      setLoadingHistory(false);
-    }
-  };
 
   // Auth RBAC Guard
   if (authLoading) {
@@ -118,18 +72,13 @@ export function AdminPage() {
     return <Navigate to="/" replace />;
   }
 
-  // Sidebar list matching specifications
+  // Sidebar list — customer-facing operational pages only
   const sidebarItems = [
     { id: "dashboard" as const, label: "Operational Overview", icon: LayoutGrid },
-    { id: "live" as const, label: "Live Transactions", icon: Radio },
-    { id: "explorer" as const, label: "Trace Explorer", icon: MessageSquare },
-    { id: "kb" as const, label: "Knowledge base", icon: Database },
-    { id: "graph" as const, label: "LangGraph visualizer", icon: Network },
-    { id: "analytics" as const, label: "Analytics Engines", icon: BarChart3 },
-    { id: "metrics" as const, label: "Specialized Agents", icon: Cpu },
-    { id: "security" as const, label: "Security auditing", icon: ShieldAlert },
-    { id: "escalations" as const, label: "Escalations desk", icon: Inbox },
-    { id: "health" as const, label: "Infrastructure vitals", icon: Activity },
+    { id: "kb" as const, label: "Knowledge Base", icon: Database },
+    { id: "analytics" as const, label: "Analytics", icon: BarChart3 },
+    { id: "escalations" as const, label: "Escalation Desk", icon: Inbox },
+    { id: "health" as const, label: "Infrastructure Vitals", icon: Activity },
     { id: "settings" as const, label: "Console Settings", icon: Settings },
   ];
 
@@ -150,9 +99,9 @@ export function AdminPage() {
             A
           </div>
           <div>
-            <h2 className="text-sm font-bold tracking-tight text-white">OPERATIONS DESK</h2>
+            <h2 className="text-sm font-bold tracking-tight text-white">Admin Console</h2>
             <p className="text-[9px] text-slate-500 uppercase tracking-widest font-mono font-bold mt-0.5">
-              Enterprise Control
+              Medical FAQ Admin
             </p>
           </div>
         </div>
@@ -283,16 +232,6 @@ export function AdminPage() {
             </div>
           )}
 
-          {activeTab === "live" && <LiveActivityFeed />}
-
-          {activeTab === "explorer" && (
-            <ConversationInspector
-              conversationId={selectedConversationId}
-              messages={conversationHistory}
-              loading={loadingHistory}
-            />
-          )}
-
           {activeTab === "kb" && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Document upload panels */}
@@ -392,8 +331,6 @@ export function AdminPage() {
             </div>
           )}
 
-          {activeTab === "graph" && <AgentWorkflowGraph activeNode={latestTrace?.node?.replace("main.", "").replace("_agent", "") || null} />}
-
           {activeTab === "analytics" && (
             <div className="space-y-6">
               {/* API latency trends */}
@@ -416,24 +353,7 @@ export function AdminPage() {
             </div>
           )}
 
-          {activeTab === "metrics" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {(agentPerf?.metrics || []).map((metric, idx) => (
-                <AgentCard key={metric.agentName} metric={metric} index={idx} />
-              ))}
-            </div>
-          )}
-
-          {activeTab === "security" && <SecurityTimeline securityData={securityMetrics || null} />}
-
-          {activeTab === "escalations" && (
-            <EscalationQueue
-              onSelectTicket={(convId) => {
-                setActiveTab("explorer");
-                handleSelectConversation(convId);
-              }}
-            />
-          )}
+          {activeTab === "escalations" && <EscalationQueue />}
 
           {activeTab === "health" && <HealthIndicator metrics={systemMetrics || null} />}
 
@@ -480,40 +400,6 @@ export function AdminPage() {
           )}
         </div>
       </main>
-
-      {/* Sidebar conversation selector helper (embedded inside trace tab) */}
-      {activeTab === "explorer" && (
-        <div className="w-80 border-l border-white/5 bg-slate-950 flex flex-col shrink-0">
-          <div className="p-4 border-b border-white/5">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Conversations list</h3>
-            <p className="text-[9px] text-slate-500 mt-0.5">Click a thread to inspect execution steps</p>
-          </div>
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin">
-            {loadingConvs ? (
-              <p className="text-xs text-slate-500 text-center py-6">Loading conversations...</p>
-            ) : conversations.length === 0 ? (
-              <p className="text-xs text-slate-500 text-center py-6">No sessions logged</p>
-            ) : (
-              conversations.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => handleSelectConversation(c.id)}
-                  className={`w-full text-left p-3 rounded-lg border text-xs transition-all ${
-                    selectedConversationId === c.id
-                      ? "bg-blue-600/15 border-blue-500/35 text-white"
-                      : "bg-slate-950 border-white/5 text-slate-450 hover:bg-white/5"
-                  }`}
-                >
-                  <div className="font-semibold truncate">{c.title || `Thread (${c.id.slice(0, 8)})`}</div>
-                  <div className="text-[9px] text-slate-500 font-mono mt-1">
-                    {c.created_at ? new Date(c.created_at).toLocaleString() : ""}
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

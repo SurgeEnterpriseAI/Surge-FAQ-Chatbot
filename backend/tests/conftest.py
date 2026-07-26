@@ -44,12 +44,26 @@ class FakeGraph:
         pass
 
     async def astream(self, stream_input, config=None, stream_mode=None):
-        yield (
+        """Mirrors LangGraph multi-mode streaming: (mode, payload) tuples.
+
+        Interleaved the way a real run arrives — a node's tokens stream first,
+        then its "updates" entry lands once the node returns.
+        """
+        def msg(chunk, node):
+            return ("messages", (chunk, {"langgraph_node": node}))
+
+        yield ("updates", {"summarize_history": {"conversation_summary": ""}})
+        yield msg(
             AIMessageChunk(content='{"is_clear": true, "questions": ["What is the refund policy?"]}'),
-            {"langgraph_node": "rewrite_query"},
+            "rewrite_query",
         )
-        yield (AIMessageChunk(content="You get a refund "), {"langgraph_node": "aggregator"})
-        yield (AIMessageChunk(content="within 30 days."), {"langgraph_node": "aggregator"})
+        yield ("updates", {"rewrite_query": {"questionIsClear": True}})
+        yield ("updates", {"supervisor_agent": {"detected_intent": "billing"}})
+        yield ("updates", {"knowledge_agent": {"agent_outputs": []}})
+        yield msg(AIMessageChunk(content="You get a refund "), "aggregator")
+        yield msg(AIMessageChunk(content="within 30 days."), "aggregator")
+        yield ("updates", {"aggregator": {"messages": []}})
+        yield ("updates", {"safety_agent": {"safety_result": {"approved": True}}})
 
 
 class FakeObservability:

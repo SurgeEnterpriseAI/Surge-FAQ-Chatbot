@@ -26,13 +26,28 @@ from core.execution_logger import (
 )
 from repositories.chat_repository import ChatRepository
 
+# Nodes whose streamed LLM output is surfaced verbatim in the trace panel.
 SYSTEM_NODES = {"summarize_history", "rewrite_query"}
 FINAL_RESPONSE_NODES = {"aggregator", "human_escalation"}
 
-SYSTEM_NODE_TITLES = {
-    "rewrite_query": "Query Analysis & Rewriting",
+# Every node the main graph can execute. The trace panel renders a row per
+# node, so a missing title here leaves that row unlabelled.
+NODE_TITLES = {
     "summarize_history": "Chat History Summary",
+    "rewrite_query": "Query Analysis & Rewriting",
+    "request_clarification": "Clarification Requested",
+    "supervisor_agent": "Supervisor Routing",
+    "knowledge_agent": "Knowledge Retrieval",
+    "aggregator": "Response Aggregation",
+    "safety_agent": "Safety & Hallucination Check",
+    "human_escalation": "Human Escalation",
+    "final": "Final Response",
 }
+
+# Bookkeeping keys LangGraph emits on the updates stream; not real nodes.
+INTERNAL_UPDATE_KEYS = {"__start__", "__end__", "__interrupt__", "__metadata__"}
+
+SYSTEM_NODE_TITLES = NODE_TITLES  # retained for existing callers
 
 TOOL_RESULT_PREVIEW_CHARS = 300
 
@@ -107,7 +122,37 @@ class ChatService:
             tools_dict: dict[str, dict] = {}
             last_clarification: str | None = None
 
-            async for chunk, metadata_graph in graph.astream(stream_input, config=config, stream_mode="messages"):
+            executed_order: list[str] = []
+
+            def _step_event(node_name: str, status: str) -> dict:
+                """Build an agent_status event, carrying any buffered LLM output."""
+                buffer = system_node_buffer.get(node_name)
+                parsed = parse_json_block(buffer) if buffer else None
+                return _event("agent_status", {
+                    "node": node_name,
+                    "title": NODE_TITLES.get(node_name, node_name.replace("_", " ").title()),
+                    "status": status,
+                    "parsed": parsed,
+                    "content": buffer if (buffer and parsed is None) else None,
+                })
+
+            # "updates" reports every node that runs, including ones that never
+            # stream tokens (supervisor, knowledge, safety). "messages" alone
+            # only ever saw the two LLM-streaming nodes, so the trace panel
+            # left the rest of the pipeline permanently greyed out.
+            async for mode, payload in graph.astream(
+                stream_input, config=config, stream_mode=["updates", "messages"]
+            ):
+                if mode == "updates":
+                    for node_name in (payload or {}):
+                        if node_name in INTERNAL_UPDATE_KEYS:
+                            continue
+                        if node_name not in executed_order:
+                            executed_order.append(node_name)
+                        yield _step_event(node_name, "done")
+                    continue
+
+                chunk, metadata_graph = payload
                 node = metadata_graph.get("langgraph_node", "")
 
                 if node in SYSTEM_NODES:
@@ -198,6 +243,12 @@ class ChatService:
             if assistant_msgs:
                 final_reply = str(assistant_msgs[-1].content)
 
+            # Closes the last row of the trace timeline. Without it the final
+            # step only ever completes on the escalation branch.
+            if "final" not in executed_order:
+                executed_order.append("final")
+            yield _step_event("final", "done")
+
             yield _event("final", {
                 "trace_id": values.get("trace_id", trace_id),
                 "content": final_reply,
@@ -206,16 +257,18 @@ class ChatService:
                 "intent": values.get("detected_intent"),
             })
 
-            # Compile final assistant message metadata
+            # Compile final assistant message metadata. Built from the executed
+            # node order so a reloaded conversation replays the same timeline.
             agent_steps = []
-            for node_name, content in system_node_buffer.items():
-                parsed = parse_json_block(content)
+            for node_name in executed_order:
+                content = system_node_buffer.get(node_name)
+                parsed = parse_json_block(content) if content else None
                 agent_steps.append({
                     "node": node_name,
-                    "title": SYSTEM_NODE_TITLES.get(node_name, node_name),
+                    "title": NODE_TITLES.get(node_name, node_name.replace("_", " ").title()),
                     "status": "done",
                     "parsed": parsed,
-                    "content": content if parsed is None else None
+                    "content": content if (content and parsed is None) else None
                 })
             
             msg_metadata = {

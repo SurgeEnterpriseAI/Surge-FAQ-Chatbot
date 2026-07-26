@@ -23,20 +23,58 @@ body {
   overflow-x: hidden;
 }
 
-/* Custom Scrollbar */
+/* Global thin scrollbar (fallback for all scroll areas) */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.2);
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.12);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/*
+ * .scrollbar-thin — modern thin custom scrollbar utility.
+ * Referenced across the app; previously undefined (no Tailwind plugin), so it
+ * silently did nothing. Defined here so scroll regions get a consistent,
+ * smooth, horizontally-hidden scrollbar with no layout shift.
+ */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  overflow-x: hidden;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+  transition: background 150ms ease;
+}
+.scrollbar-thin:hover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* Fully hide a scrollbar while keeping the element scrollable */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
 /* Flat surface panel */

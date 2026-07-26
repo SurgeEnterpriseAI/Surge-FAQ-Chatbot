@@ -120,10 +120,13 @@ async def list_documents(user: dict = Depends(get_current_user), doc_manager=Dep
                 )
             )
     else:
-        sources = await asyncio.to_thread(doc_manager.rag_system.parent_store.list_sources)
-        for s in sources:
-            parent_ids = doc_manager.rag_system.parent_store.list_ids_for_source(s)
-            count = len(parent_ids)
+        # Both calls must run off the event loop: the parent store refuses
+        # synchronous access from the loop thread.
+        def _sources_with_counts() -> list[tuple[str, int]]:
+            store = doc_manager.rag_system.parent_store
+            return [(s, len(store.list_ids_for_source(s))) for s in store.list_sources()]
+
+        for s, count in await asyncio.to_thread(_sources_with_counts):
             out_docs.append(
                 DocumentOut(
                     source=s,

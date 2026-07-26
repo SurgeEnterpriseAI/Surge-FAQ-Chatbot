@@ -23,7 +23,7 @@ export function ChatInput({ disabled, onSend, onStop, streaming }: Props) {
       <input
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="Type a message or ask about invoice balance, tracking packages, system health..."
+        placeholder="Ask about symptoms, medications, treatments, or general health information..."
         className="flex-1 border-none bg-transparent px-3 py-2 text-sm outline-none text-slate-100 placeholder-slate-500 disabled:opacity-50"
         disabled={disabled}
       />

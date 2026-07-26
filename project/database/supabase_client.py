@@ -211,16 +211,29 @@ async def connect_prisma():
     try:
         current_loop = asyncio.get_running_loop()
         lock = get_prisma_lock()
-        
+
         async with lock:
             if prisma_main_loop is None:
                 prisma_main_loop = current_loop
-                
+
             if prisma_client.is_connected():
                 return
-            
-            await prisma_client.connect()
-            prisma_loop = current_loop
+
+            # Connecting to Supabase/pgBouncer can transiently fail while the
+            # server is still warming up. Retry once with a short backoff so the
+            # first request after boot isn't served against a disconnected
+            # client (which would otherwise degrade or error intermittently).
+            last_error = None
+            for attempt in range(2):
+                try:
+                    await prisma_client.connect()
+                    prisma_loop = current_loop
+                    return
+                except Exception as e:  # noqa: BLE001
+                    last_error = e
+                    if attempt == 0:
+                        await asyncio.sleep(0.5)
+            raise last_error
     except Exception as e:
         logger.warning("Prisma database connection could not be established: %s", e)
 
