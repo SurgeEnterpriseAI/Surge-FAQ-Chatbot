@@ -29,72 +29,116 @@ from agents.aggregator import aggregator
 from agents.safety_agent import safety_agent
 from agents.escalation_agent import human_escalation
 
-def create_agent_graph(llm, tools_list):
+# Connection-string parameters Prisma understands but libpq does not. The same
+# DATABASE_URL feeds both Prisma and psycopg, and psycopg aborts the connection
+# with "invalid URI query parameter" rather than ignoring what it cannot use.
+_PRISMA_ONLY_PARAMS = frozenset({
+    "pgbouncer",
+    "prepared_statements",
+    "connection_limit",
+    "pool_timeout",
+    "socket_timeout",
+    "statement_cache_size",
+    "schema",
+    "sslidentity",
+    "sslpassword",
+})
+
+
+def _normalize_conninfo(conninfo: str) -> str:
+    """Strip Prisma-only query parameters so libpq accepts the URL.
+
+    Everything else is left alone — genuine libpq parameters such as ``sslmode``
+    and ``connect_timeout`` must survive.
+    """
+    import urllib.parse
+
+    url_parts = urllib.parse.urlparse(conninfo)
+    if not url_parts.query:
+        return conninfo
+
+    query_params = urllib.parse.parse_qs(url_parts.query)
+    kept = {k: v for k, v in query_params.items() if k.lower() not in _PRISMA_ONLY_PARAMS}
+    if len(kept) == len(query_params):
+        return conninfo
+
+    new_query = urllib.parse.urlencode(kept, doseq=True)
+    return urllib.parse.urlunparse(url_parts._replace(query=new_query))
+
+
+def build_postgres_checkpointer():
+    """Build an AsyncPostgresSaver whose pool is deliberately left closed.
+
+    An AsyncConnectionPool binds to the event loop that opens it, so it must be
+    opened on the loop that will later use it. Constructing it with the default
+    ``open=True`` from the worker thread that builds the RAG system fails with
+    "AsyncConnectionPool open with no running loop", and opening it on a
+    throwaway loop would bind the pool to a loop that is then discarded.
+
+    Opening and ``setup()`` are therefore deferred to ``open_postgres_checkpointer``,
+    which the FastAPI lifespan awaits on Uvicorn's own loop.
+
+    Returns ``(checkpointer, pool)``, or ``(None, None)`` when Postgres is not
+    configured or its driver is missing.
+    """
+    from config.settings import settings
+
+    if not settings.DATABASE_URL:
+        return None, None
+
+    try:
+        from psycopg_pool import AsyncConnectionPool
+        from psycopg.rows import dict_row
+        from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+    except ImportError as e:
+        print(f"WARNING: Postgres checkpointer packages are unavailable ({e}).")
+        return None, None
+
+    pool = AsyncConnectionPool(
+        conninfo=_normalize_conninfo(settings.DATABASE_URL),
+        max_size=5,
+        open=False,
+        kwargs={
+            "autocommit": True,
+            "row_factory": dict_row,
+            "prepare_threshold": None,
+        },
+    )
+    return AsyncPostgresSaver(pool), pool
+
+
+async def open_postgres_checkpointer(timeout: float = 15.0):
+    """Open the checkpointer pool and create its tables on the running loop.
+
+    Returns ``(checkpointer, pool)`` when Postgres is usable, else ``(None, None)``
+    so the caller can fall back to in-memory checkpointing.
+    """
+    checkpointer, pool = build_postgres_checkpointer()
+    if checkpointer is None:
+        return None, None
+
+    try:
+        await pool.open(wait=True, timeout=timeout)
+        await checkpointer.setup()
+    except Exception as e:
+        print(f"WARNING: Failed to connect to Postgres checkpointer: {e}. Falling back to in-memory checkpointing.")
+        try:
+            await pool.close()
+        except Exception:
+            pass
+        return None, None
+
+    print("Connected to Postgres checkpointer.")
+    return checkpointer, pool
+
+
+def create_agent_graph(llm, tools_list, checkpointer=None):
     llm_with_tools = llm.bind_tools(tools_list)
     tool_node = ToolNode(tools_list)
 
-    from config.settings import settings
-    checkpointer = None
-    if settings.DATABASE_URL:
-        try:
-            import sys
-            import asyncio
-            if sys.platform == 'win32':
-                try:
-                    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-                except Exception:
-                    pass
-
-            from psycopg_pool import AsyncConnectionPool
-            from psycopg.rows import dict_row
-            from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-            import urllib.parse
-            
-            conninfo = settings.DATABASE_URL
-            if "pgbouncer=" in conninfo:
-                url_parts = urllib.parse.urlparse(conninfo)
-                query_params = urllib.parse.parse_qs(url_parts.query)
-                query_params.pop("pgbouncer", None)
-                new_query = urllib.parse.urlencode(query_params, doseq=True)
-                url_parts = url_parts._replace(query=new_query)
-                conninfo = urllib.parse.urlunparse(url_parts)
-            
-            pool = AsyncConnectionPool(
-                conninfo=conninfo,
-                max_size=5,
-                kwargs={
-                    "autocommit": True, 
-                    "row_factory": dict_row,
-                    "prepare_threshold": None
-                }
-            )
-            checkpointer = AsyncPostgresSaver(pool)
-            
-            # Run async setup synchronously
-            try:
-                try:
-                    loop = asyncio.get_event_loop()
-                except RuntimeError:
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                
-                if loop.is_running():
-                    # Graph creation can occur during an ASGI request.  Do
-                    # not nest Uvicorn's loop just to initialise optional
-                    # persistence; MemorySaver below remains a safe fallback.
-                    raise RuntimeError("Postgres checkpointer setup requires a worker thread")
-                loop.run_until_complete(checkpointer.setup())
-            except Exception as e:
-                print(f"Warning during PostgresSaver setup: {e}")
-                
-            print("Connected to Supabase Postgres checkpointer.")
-        except Exception as e:
-            print(f"WARNING: Failed to connect to Postgres checkpointer: {e}. Falling back to in-memory checkpointing.")
-
     if checkpointer is None:
-        print("WARNING: Using in-memory checkpointing (MemorySaver) as fallback.")
+        print("WARNING: Using in-memory checkpointing (MemorySaver); paused chats will not survive a restart.")
         checkpointer = MemorySaver()
-
 
     print("Compiling agent graph...")
     agent_builder = StateGraph(AgentState)
@@ -118,6 +162,10 @@ def create_agent_graph(llm, tools_list):
     def knowledge_agent_node(state: State):
         queries = state.get("rewrittenQuestions") or [state.get("originalQuery") or ""]
         answers = []
+        # The subgraph's agent_answers carry the retrieved contexts. Dropping
+        # them left the main graph with an empty agent_answers, so the caller
+        # never emitted a "sources" event and the UI showed no citations.
+        collected_answers = []
         for idx, query in enumerate(queries):
             sub_state = {
                 "question": query,
@@ -128,6 +176,7 @@ def create_agent_graph(llm, tools_list):
             }
             res = agent_subgraph.invoke(sub_state)
             for ans in res.get("agent_answers", []):
+                collected_answers.append(ans)
                 answers.append({
                     "agent": "KnowledgeAgent",
                     "answer": ans.get("answer", ""),
@@ -139,7 +188,7 @@ def create_agent_graph(llm, tools_list):
                 "answer": "No relevant documents found in support system.",
                 "success": False
             })
-        return {"agent_outputs": answers}
+        return {"agent_outputs": answers, "agent_answers": collected_answers}
 
     graph_builder = StateGraph(State)
 

@@ -17,10 +17,17 @@ class RAGSystem:
         self.chunker = DocumentChunker()
         self.observability = Observability()
         self.agent_graph = None
+        self.checkpointer = None
         self.thread_id = str(uuid.uuid4())
         self.recursion_limit = config.GRAPH_RECURSION_LIMIT
 
-    def initialize(self):
+    def initialize(self, checkpointer=None):
+        """Build the agent graph.
+
+        ``checkpointer`` must already be opened on the loop that will run the
+        graph (see ``rag_agent.graph.open_postgres_checkpointer``). Passing None
+        compiles the graph with in-memory checkpointing.
+        """
         self.vector_db.create_collection(self.collection_name)
         collection = self.vector_db.get_collection(self.collection_name)
 
@@ -34,12 +41,27 @@ class RAGSystem:
             import os
             from langchain_nvidia_ai_endpoints import ChatNVIDIA
             llm = ChatNVIDIA(
-                model=getattr(config, "NVIDIA_MODEL", "meta/llama-3.3-70b-instruct"),
+                model=getattr(config, "NVIDIA_MODEL", "meta/llama-3.1-8b-instruct"),
                 api_key=os.environ.get("NVIDIA_API_KEY"),
                 temperature=config.LLM_TEMPERATURE,
                 top_p=0.7,
                 max_tokens=1024,
             )
+            # Cross-provider fallback: a NIM model returning 503 should not
+            # take the app down while the OpenRouter key still has quota.
+            openrouter_key = os.environ.get("OPENROUTER_API_KEY")
+            if openrouter_key:
+                from langchain_openai import ChatOpenAI
+
+                llm = llm.with_fallbacks([
+                    ChatOpenAI(
+                        model=getattr(config, "OPENROUTER_MODEL", ""),
+                        openai_api_key=openrouter_key,
+                        openai_api_base="https://openrouter.ai/api/v1",
+                        temperature=config.LLM_TEMPERATURE,
+                        max_tokens=2048,
+                    )
+                ])
         elif provider == "ollama":
             from langchain_ollama import ChatOllama
             llm = ChatOllama(
@@ -67,14 +89,29 @@ class RAGSystem:
                 extra_body=extra_body if extra_body else None,
             )
 
-            # Build rate-limit fallback LLMs (NVIDIA free models & Direct Google Gemini)
+            # OpenRouter's "free-models-per-day" cap is account-wide across
+            # every ":free" variant, so once it trips, more :free models return
+            # the same 429. A different provider must be tried first; extra
+            # :free entries only burn latency on calls that cannot succeed.
             fallbacks = []
-            fallback_models = getattr(
-                config,
-                "OPENROUTER_FALLBACK_MODELS",
-                ["nvidia/nemotron-3-nano-30b-a3b:free", "nvidia/nemotron-nano-9b-v2:free", "google/gemma-4-31b-it:free"]
-            )
-            for fb_model in fallback_models:
+
+            nvidia_key = os.environ.get("NVIDIA_API_KEY")
+            if nvidia_key:
+                from langchain_nvidia_ai_endpoints import ChatNVIDIA
+
+                fallbacks.append(
+                    ChatNVIDIA(
+                        model=getattr(config, "NVIDIA_MODEL", "meta/llama-3.1-8b-instruct"),
+                        api_key=nvidia_key,
+                        temperature=config.LLM_TEMPERATURE,
+                        top_p=0.7,
+                        max_tokens=1024,
+                    )
+                )
+
+            # One paid-tier-capable alternate covers a single model being down
+            # or per-model throttled, which the account-wide cap does not.
+            for fb_model in getattr(config, "OPENROUTER_FALLBACK_MODELS", []):
                 if fb_model != model_name:
                     fallbacks.append(
                         ChatOpenAI(
@@ -85,16 +122,7 @@ class RAGSystem:
                             max_tokens=2048,
                         )
                     )
-
-            google_key = os.environ.get("GOOGLE_API_KEY")
-            if google_key:
-                fallbacks.append(
-                    ChatGoogleGenerativeAI(
-                        model=getattr(config, "GOOGLE_MODEL", "gemini-2.5-flash-lite"),
-                        google_api_key=google_key,
-                        temperature=config.LLM_TEMPERATURE,
-                    )
-                )
+                    break
 
             if fallbacks:
                 llm = primary_llm.with_fallbacks(fallbacks)
@@ -104,7 +132,8 @@ class RAGSystem:
             raise ValueError(f"Unsupported LLM provider: {provider}")
 
         tools = ToolFactory(collection).create_tools()
-        self.agent_graph = create_agent_graph(llm, tools)
+        self.checkpointer = checkpointer
+        self.agent_graph = create_agent_graph(llm, tools, checkpointer=checkpointer)
 
         # Auto-ingest company knowledge base documents on startup
         # from core.document_manager import DocumentManager

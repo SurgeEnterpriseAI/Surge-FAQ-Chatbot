@@ -18,12 +18,12 @@ from backend.middleware.error_handlers import register_error_handlers
 from backend.services.upload_service import UploadService
 
 
-def _build_rag_system():
+def _build_rag_system(checkpointer=None):
     from core.document_manager import DocumentManager
     from core.rag_system import RAGSystem
 
     rag_system = RAGSystem()
-    rag_system.initialize()
+    rag_system.initialize(checkpointer=checkpointer)
     return rag_system, DocumentManager(rag_system)
 
 
@@ -40,8 +40,18 @@ def create_app(init_resources: bool = True) -> FastAPI:
                 print(f"WARNING: Prisma connection failed at startup: {e}")
             
             metrics_collector.start()
+
+            # Opened here, not inside _build_rag_system: an AsyncConnectionPool
+            # binds to the loop that opens it, and the RAG system is built in a
+            # worker thread that has no running loop.
+            from rag_agent.graph import open_postgres_checkpointer
+
+            checkpointer, app.state.checkpointer_pool = await open_postgres_checkpointer()
+
             try:
-                app.state.rag_system, app.state.doc_manager = await asyncio.to_thread(_build_rag_system)
+                app.state.rag_system, app.state.doc_manager = await asyncio.to_thread(
+                    _build_rag_system, checkpointer
+                )
             except Exception as e:
                 print(f"WARNING: RAG system initialization failed: {e}")
                 print("Server starting in degraded mode — chat and document upload will return 503 until the issue is resolved.")
@@ -53,6 +63,11 @@ def create_app(init_resources: bool = True) -> FastAPI:
                 app.state.rag_system.observability.flush()
             except Exception:
                 pass
+            if app.state.checkpointer_pool is not None:
+                try:
+                    await app.state.checkpointer_pool.close()
+                except Exception:
+                    pass
             try:
                 await asyncio.wait_for(disconnect_prisma(), timeout=int(os.environ.get("GRACEFUL_SHUTDOWN_SECONDS", "20")))
             except Exception:
@@ -61,6 +76,7 @@ def create_app(init_resources: bool = True) -> FastAPI:
     app = FastAPI(title="Agentic RAG API", version="1.0.0", lifespan=lifespan)
     app.state.rag_system = None
     app.state.doc_manager = None
+    app.state.checkpointer_pool = None
     app.state.ingest_lock = threading.Lock()
     app.state.upload_service = UploadService()
 

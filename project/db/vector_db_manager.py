@@ -108,11 +108,16 @@ class PineconeVectorStore:
             vectors = retry_with_backoff(lambda: self.embedding.embed_documents(texts))
             records = []
             for doc, vector in zip(batch_docs, vectors):
-                vector_id = (
-                    doc.metadata.get("id")
-                    or doc.metadata.get("parent_id")
-                    or str(uuid.uuid4())
-                )
+                # Never fall back to parent_id: sibling children share it and
+                # would silently overwrite each other on upsert.
+                vector_id = doc.metadata.get("id")
+                if not vector_id:
+                    vector_id = str(uuid.uuid4())
+                    logger.warning(
+                        "Child chunk from %s has no 'id' metadata; assigned %s",
+                        doc.metadata.get("source", "unknown"),
+                        vector_id,
+                    )
                 metadata = self._metadata(doc.metadata)
                 metadata[self._CONTENT_KEY] = doc.page_content
                 records.append({"id": vector_id, "values": vector, "metadata": metadata})

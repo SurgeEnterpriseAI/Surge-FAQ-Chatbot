@@ -1,6 +1,56 @@
+import re
+
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from rag_agent.graph_state import State
 from rag_agent.prompts import get_escalation_prompt
+
+MAX_RELATED_ITEMS = 3
+MAX_RELATED_CHARS = 140
+
+HANDOFF_MESSAGE = (
+    "I couldn't confirm an answer for this, so I've passed it to our support "
+    "team. They'll follow up shortly."
+)
+
+
+def _related_topics(state: State) -> list[str]:
+    """Readable topics from retrieved context, for the customer-facing reply.
+
+    Sourced from retrieval rather than the drafted answer: escalation often
+    means that answer was rejected, so it must not be surfaced.
+    """
+    topics: list[str] = []
+    for answer in state.get("agent_answers", []):
+        if not isinstance(answer, dict):
+            continue
+        for context in answer.get("contexts", []):
+            text = str(context)
+            # Contexts arrive as "Parent ID: ...\nFile Name: ...\nContent: ..."
+            match = re.search(r"^Focus:\s*(.+)$", text, re.MULTILINE)
+            if not match:
+                match = re.search(r"^Content:\s*(?:Question:\s*)?(.+)$", text, re.MULTILINE)
+            if not match:
+                continue
+            topic = match.group(1).strip().rstrip("?").strip()
+            if not topic:
+                continue
+            topic = topic[:MAX_RELATED_CHARS]
+            if topic not in topics:
+                topics.append(topic)
+            if len(topics) >= MAX_RELATED_ITEMS:
+                return topics
+    return topics
+
+
+def _customer_message(state: State) -> str:
+    """The chat reply. The structured ticket stays internal."""
+    lines = [f"⚠️ {HANDOFF_MESSAGE}"]
+    topics = _related_topics(state)
+    if topics:
+        lines.append("")
+        lines.append("What I did find that may be related:")
+        lines.extend(f"- {topic}" for topic in topics)
+    return "\n".join(lines)
 
 def human_escalation(state: State, llm):
     query = state.get("originalQuery") or ""
@@ -56,8 +106,13 @@ def human_escalation(state: State, llm):
     except Exception as e:
         print(f"⚠️ Failed to log escalation to Supabase: {e}")
     
+    # escalation_text is an internal handoff ticket (see get_escalation_prompt):
+    # it names the agents that ran and instructs a human what to do next, so it
+    # is kept in the summary and the escalations table, never sent to the chat.
     return {
         "conversation_summary": escalation_text,
         "escalation_required": True,
-        "messages": [AIMessage(content=f"⚠️ {escalation_text}", name="human_escalation_message")]
+        "messages": [
+            AIMessage(content=_customer_message(state), name="human_escalation_message")
+        ]
     }

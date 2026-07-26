@@ -197,6 +197,11 @@ class DocumentChunker:
         for i, p_chunk in enumerate(parent_chunks):
             parent_id = f"{doc_path.stem}_p{i}"
             p_chunk.metadata.update({"source": source_name, "parent_id": parent_id})
-            
+
             all_parent_pairs.append((parent_id, p_chunk))
-            all_child_chunks.extend(self.__child_splitter.split_documents([p_chunk]))
+            children = self.__child_splitter.split_documents([p_chunk])
+            # Each child needs its own vector id; without it every child of a
+            # parent upserts under the parent id and overwrites its siblings.
+            for j, child in enumerate(children):
+                child.metadata["id"] = f"{parent_id}_c{j}"
+            all_child_chunks.extend(children)

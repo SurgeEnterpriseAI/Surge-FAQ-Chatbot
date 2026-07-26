@@ -21,10 +21,20 @@ export function LoginPage() {
       await fn();
       navigate("/");
     } catch (e: unknown) {
-      const detail =
-        (e as { response?: { data?: { detail?: string } } }).response?.data?.detail ??
-        (e instanceof Error ? e.message : "Login failed");
-      setError(detail);
+      const err = e as { response?: { status?: number; data?: { detail?: string } } };
+      const status = err.response?.status;
+      const detail = err.response?.data?.detail;
+
+      let message: string;
+      if (detail) {
+        message = detail;
+      } else if (!err.response || (status && status >= 500)) {
+        // No response (server booting / network) or a transient 5xx with no detail.
+        message = "The server is still starting up or is temporarily unavailable. Please try again in a moment.";
+      } else {
+        message = e instanceof Error ? e.message : "Login failed";
+      }
+      setError(message);
     } finally {
       setBusy(false);
     }

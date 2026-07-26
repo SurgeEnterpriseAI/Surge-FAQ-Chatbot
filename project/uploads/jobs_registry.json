@@ -88,5 +88,225 @@
     "added": 1,
     "skipped": 0,
     "error": null
+  },
+  "62da93e72118411ca192be5f0768160c": {
+    "id": "62da93e72118411ca192be5f0768160c",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "699bc1b28dd44f7f904ef45b38f1052d": {
+    "id": "699bc1b28dd44f7f904ef45b38f1052d",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "24718917c4cd47be91344d2fc62abf61": {
+    "id": "24718917c4cd47be91344d2fc62abf61",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "30ba4cf92cb44743a398e4512c5deae2": {
+    "id": "30ba4cf92cb44743a398e4512c5deae2",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "2dabb206dc2946e68d51b89c5a2dfb01": {
+    "id": "2dabb206dc2946e68d51b89c5a2dfb01",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "d656da1ed6814589aa78c60a46add7f6": {
+    "id": "d656da1ed6814589aa78c60a46add7f6",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "02cfb3a0af6b45c9ae2486c1fdbcb266": {
+    "id": "02cfb3a0af6b45c9ae2486c1fdbcb266",
+    "kind": "reindex",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Re-indexing complete",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "5cbcfd890fb4442f8c7c1b108748e9a0": {
+    "id": "5cbcfd890fb4442f8c7c1b108748e9a0",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Embedding medquad.csv: 16,412/16,412 chunks",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "c06a78cff8094aca829e93970d9ef116": {
+    "id": "c06a78cff8094aca829e93970d9ef116",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "d18e8bb7aad3418b80f95341823bd3fc": {
+    "id": "d18e8bb7aad3418b80f95341823bd3fc",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "590d425bcc5a44b2bcc30939245a4fcc": {
+    "id": "590d425bcc5a44b2bcc30939245a4fcc",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "b0bc0b812c684c8cb5aa6dc8143f2cbd": {
+    "id": "b0bc0b812c684c8cb5aa6dc8143f2cbd",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "f90313c5b4014d69989a920f001c312e": {
+    "id": "f90313c5b4014d69989a920f001c312e",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "31afe35463df436984806c90cadcd81c": {
+    "id": "31afe35463df436984806c90cadcd81c",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "0a26b745e055404293582a36d34dba65": {
+    "id": "0a26b745e055404293582a36d34dba65",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "6aeb8e75ec464f7d9bb4162cd89c2ff9": {
+    "id": "6aeb8e75ec464f7d9bb4162cd89c2ff9",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "83286a8772ae4c7d9f82152093649318": {
+    "id": "83286a8772ae4c7d9f82152093649318",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "d979400099e042109f7430015c01b647": {
+    "id": "d979400099e042109f7430015c01b647",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "c01f69ab12bc4b34a87ab97efe9b3137": {
+    "id": "c01f69ab12bc4b34a87ab97efe9b3137",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "c6258d26d5334011a5f9e054bf0a14ae": {
+    "id": "c6258d26d5334011a5f9e054bf0a14ae",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "3a931ff0984540a3a5fe38c9e47dc0b6": {
+    "id": "3a931ff0984540a3a5fe38c9e47dc0b6",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
+  },
+  "7f52f0d06b7c40119be08049fd31e641": {
+    "id": "7f52f0d06b7c40119be08049fd31e641",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Processing test.txt",
+    "added": 1,
+    "skipped": 0,
+    "error": null
   }
 }

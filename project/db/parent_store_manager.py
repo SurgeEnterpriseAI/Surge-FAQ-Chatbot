@@ -107,29 +107,23 @@ async def _load_async(parent_id: str) -> Dict:
 
 async def _list_sources_async() -> List[str]:
     await connect_prisma()
-    records = await prisma_client.parentchunk.find_many()
-    sources = set()
-    for record in records:
-        source = _parse_metadata(record.metadata).get("source")
-        if source:
-            sources.add(source)
-    return sorted(sources)
+    # Projected in SQL: find_many() would stream every parent chunk's full
+    # content (tens of MB) across the pooler just to read one metadata key.
+    rows = await prisma_client.query_raw(
+        "SELECT DISTINCT metadata->>'source' AS source FROM parent_chunks "
+        "WHERE metadata->>'source' IS NOT NULL"
+    )
+    return sorted(row["source"] for row in rows)
 
 
 async def _list_ids_for_source_async(source_name: str) -> List[str]:
     await connect_prisma()
-    try:
-        records = await prisma_client.parentchunk.find_many(
-            where={"metadata": {"path": ["source"], "equals": source_name}}
-        )
-        return [record.id for record in records]
-    except Exception:
-        records = await prisma_client.parentchunk.find_many()
-        return [
-            record.id
-            for record in records
-            if _parse_metadata(record.metadata).get("source") == source_name
-        ]
+    # Prisma's JSON-path filter is unsupported by prisma-client-py and raised
+    # FieldNotFoundError, so the old fallback fetched the entire table.
+    rows = await prisma_client.query_raw(
+        "SELECT id FROM parent_chunks WHERE metadata->>'source' = $1", source_name
+    )
+    return [row["id"] for row in rows]
 
 
 async def _clear_store_async() -> None:
