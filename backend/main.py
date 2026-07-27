@@ -118,12 +118,15 @@ def _reclaim_port(host: str, port: int) -> bool:
 def main() -> None:
     host = os.environ.get("API_HOST", "0.0.0.0")
     port = int(os.environ.get("API_PORT", "8001"))
-    reclaim = os.environ.get("API_PORT_RECLAIM", "1").lower() not in ("0", "false", "no")
+    reclaim = os.environ.get("API_PORT_RECLAIM", "0").lower() not in ("0", "false", "no")
 
     if not _port_is_free(host, port):
         if not reclaim:
             print(
-                f"ERROR: port {port} is already in use (API_PORT_RECLAIM is off).",
+                f"ERROR: port {port} is already in use.\n"
+                f"  If this is an orphaned run of this server (terminal closed without Ctrl+C), "
+                f"opt in to auto-reclaim:  $env:API_PORT_RECLAIM=1\n"
+                f"  Otherwise, stop the process holding the port or pick another one:  $env:API_PORT={port + 1}",
                 file=sys.stderr,
             )
             raise SystemExit(1)

@@ -20,6 +20,7 @@ export function ChatWindow({ messages, streaming, clarification, onRetry }: Prop
   const bottomRef = useRef<HTMLDivElement>(null);
   const prevMessagesLength = useRef(0);
   const prevLastMessageContent = useRef("");
+  const prevStreaming = useRef(false);
   // Whether the user is pinned near the bottom. Starts true so first messages scroll.
   const isNearBottom = useRef(true);
 
@@ -38,11 +39,21 @@ export function ChatWindow({ messages, streaming, clarification, onRetry }: Prop
     prevMessagesLength.current = len;
     prevLastMessageContent.current = lastContent;
 
-    // Only follow the stream if the user hasn't scrolled up to read history.
-    if (changed && isNearBottom.current) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    // A send always re-pins to the bottom, even if the user had scrolled up
+    // to read earlier history.
+    if (streaming && !prevStreaming.current) {
+      isNearBottom.current = true;
     }
-  }, [messages]);
+    prevStreaming.current = streaming;
+
+    // Only follow the stream if the user hasn't scrolled up to read history.
+    // "auto" (instant) avoids the animated scroll lagging behind rapidly
+    // streamed tokens, which would otherwise make handleScroll see a large
+    // distance-from-bottom and incorrectly latch the follow off.
+    if (changed && isNearBottom.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "auto" });
+    }
+  }, [messages, streaming]);
 
   return (
     <div

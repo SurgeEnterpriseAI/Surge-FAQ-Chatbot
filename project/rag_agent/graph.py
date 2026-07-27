@@ -96,6 +96,7 @@ def build_postgres_checkpointer():
 
     pool = AsyncConnectionPool(
         conninfo=_normalize_conninfo(settings.DATABASE_URL),
+        min_size=1,
         max_size=5,
         open=False,
         kwargs={

@@ -308,5 +308,15 @@
     "added": 1,
     "skipped": 0,
     "error": null
+  },
+  "dde1e955f47a4307aada52ba565afe84": {
+    "id": "dde1e955f47a4307aada52ba565afe84",
+    "kind": "upload",
+    "status": "completed",
+    "progress": 1.0,
+    "current_file": "Embedding medquad.csv: 16,412/16,412 chunks",
+    "added": 1,
+    "skipped": 0,
+    "error": null
   }
 }
