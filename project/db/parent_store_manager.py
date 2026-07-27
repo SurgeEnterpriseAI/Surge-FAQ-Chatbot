@@ -111,7 +111,7 @@ async def _list_sources_async() -> List[str]:
     # content (tens of MB) across the pooler just to read one metadata key.
     rows = await prisma_client.query_raw(
         "SELECT DISTINCT metadata->>'source' AS source FROM parent_chunks "
-        "WHERE metadata->>'source' IS NOT NULL"
+        "WHERE metadata->>'source' IS NOT NULL AND metadata->>'source' != ''"
     )
     return sorted(row["source"] for row in rows)
 

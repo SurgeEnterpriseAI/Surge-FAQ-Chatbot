@@ -41,14 +41,14 @@ def create_app(init_resources: bool = True) -> FastAPI:
             
             metrics_collector.start()
 
-            # Opened here, not inside _build_rag_system: an AsyncConnectionPool
-            # binds to the loop that opens it, and the RAG system is built in a
-            # worker thread that has no running loop.
-            from rag_agent.graph import open_postgres_checkpointer
-
-            checkpointer, app.state.checkpointer_pool = await open_postgres_checkpointer()
-
             try:
+                # Opened here, not inside _build_rag_system: an AsyncConnectionPool
+                # binds to the loop that opens it, and the RAG system is built in a
+                # worker thread that has no running loop.
+                from rag_agent.graph import open_postgres_checkpointer
+
+                checkpointer, app.state.checkpointer_pool = await open_postgres_checkpointer()
+
                 app.state.rag_system, app.state.doc_manager = await asyncio.to_thread(
                     _build_rag_system, checkpointer
                 )

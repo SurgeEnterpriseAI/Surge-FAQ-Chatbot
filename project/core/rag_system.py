@@ -109,8 +109,21 @@ class RAGSystem:
                     )
                 )
 
-            # One paid-tier-capable alternate covers a single model being down
-            # or per-model throttled, which the account-wide cap does not.
+            # Cross-provider fallback: Google is a separate account/provider,
+            # so it is unaffected by OpenRouter's account-wide free-tier cap.
+            google_key = os.environ.get("GOOGLE_API_KEY")
+            if google_key:
+                fallbacks.append(
+                    ChatGoogleGenerativeAI(
+                        model=getattr(config, "GOOGLE_MODEL", "gemini-2.5-flash-lite"),
+                        google_api_key=google_key,
+                        temperature=config.LLM_TEMPERATURE,
+                    )
+                )
+
+            # Remaining OpenRouter alternates cover a single model being down
+            # or per-model throttled, which the account-wide cap does not —
+            # note these are still subject to that cap themselves.
             for fb_model in getattr(config, "OPENROUTER_FALLBACK_MODELS", []):
                 if fb_model != model_name:
                     fallbacks.append(

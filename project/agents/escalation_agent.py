@@ -19,6 +19,13 @@ def _related_topics(state: State) -> list[str]:
     Sourced from retrieval rather than the drafted answer: escalation often
     means that answer was rejected, so it must not be surfaced.
     """
+    safety = state.get("safety_result") or {}
+    if safety.get("approved") is False:
+        # The drafted answer was rejected by the safety agent; the retrieved
+        # context that fed it is untrusted for direct display (may contain
+        # injected or unsafe text), so nothing context-derived is shown.
+        return []
+
     topics: list[str] = []
     for answer in state.get("agent_answers", []):
         if not isinstance(answer, dict):
@@ -26,9 +33,9 @@ def _related_topics(state: State) -> list[str]:
         for context in answer.get("contexts", []):
             text = str(context)
             # Contexts arrive as "Parent ID: ...\nFile Name: ...\nContent: ..."
+            # Only the curated Focus line is shown; raw Content is internal
+            # document text and must never be forwarded to the customer.
             match = re.search(r"^Focus:\s*(.+)$", text, re.MULTILINE)
-            if not match:
-                match = re.search(r"^Content:\s*(?:Question:\s*)?(.+)$", text, re.MULTILINE)
             if not match:
                 continue
             topic = match.group(1).strip().rstrip("?").strip()

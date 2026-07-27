@@ -7,6 +7,8 @@ __pycache__/
 .venv/
 venv/
 
+.claude/
+CLAUDE.md
 qdrant_db/
 markdown_docs/
 parent_store/
